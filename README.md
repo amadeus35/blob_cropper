@@ -34,7 +34,11 @@ The application has command line interface with 2 commands.
    > The -d flag's value specifies the destination folder where the extracted blobs will be saved as image files.  
    > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_If destination folder does not exist one will be created inside the source folder._
 
+---
+
 ## Limitations
+
+### Images
 
 The images processed by the module must have extensions supported by opencv2.  
 A listing of supported opencv2 image extensions can be found in the [opencv2 docs](https://docs.opencv.org/4.x/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56)
