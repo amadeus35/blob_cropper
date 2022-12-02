@@ -1,6 +1,6 @@
 import argparse
-from crop_blobs import getFilePaths, cropBlobs
-from utilities import AppMsg
+from src.crop_blobs import getFilePaths, cropBlobs
+from src.utilities import AppMsg
 import os
 import sys
 
@@ -24,7 +24,7 @@ def main():
     img_files = getFilePaths(src_folder)
 
     for img in img_files:
-        org_img, thresh_img = cropBlobs(dest_folder, img)
+        cropBlobs(dest_folder, img)
 
 
 if __name__ == '__main__':

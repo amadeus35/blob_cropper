@@ -4,7 +4,7 @@ import numpy as np
 import math
 import uuid
 from matplotlib import pyplot as plt
-from utilities import AppMsg, findRange
+from .utilities import AppMsg, findRange
 
 DEBUG = False
 
@@ -96,6 +96,11 @@ def cropBlobs(folder_path: str, image_path: str):
     the crops will be saved. The second one is a image file path.
     If the folder path does not exist the method will create one with the folder path provided.
     """
+
+    if os.path.isdir(image_path):
+        AppMsg('Path is not of file type, skipping entity.')
+        return None
+
     org_img = cv2.imread(image_path)
     gray_img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
@@ -164,7 +169,7 @@ def cropBlobs(folder_path: str, image_path: str):
         fig = plt.figure(figsize=(10, 7))
         plt.boxplot(flattened_gray_img)
 
-    AppMsg(f'Number of Keypoints= {len(threshed_keypts)}')
+    AppMsg(f'Number of Keypoints found: {len(threshed_keypts)}')
     img_with_keypts = cv2.drawKeypoints(
         threshed_img,
         threshed_keypts,
