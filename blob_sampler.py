@@ -31,20 +31,30 @@ def main():
 
     cmdArgs = parser.parse_args()
 
-    if cmdArgs.video_cropper_selected == '1':
-        cropVideoBlobs(cmdArgs.source, cmdArgs.destination)
+    if getattr(cmdArgs, 'video_cropper_selected', '0') == '1':
+        src_folder = cmdArgs.source
+        dest_folder = cmdArgs.destination
+        if not os.path.isdir(src_folder):
+            AppMsg('Please enter a valid source folder path.')
+            sys.exit()
 
-    # src_folder = cmdArgs.source
-    # if not os.path.isdir(src_folder):
-    #     AppMsg('Please enter a valid source folder path.')
-    #     sys.exit()
+        video_files = getFilePaths(src_folder)
 
-    # dest_folder = cmdArgs.destination
+        for video_path in video_files:
+            cropVideoBlobs(video_path, dest_folder)
 
-    # img_files = getFilePaths(src_folder)
+    if getattr(cmdArgs, 'image_cropper_selected', '0') == '1':
+        src_folder = cmdArgs.source
+        dest_folder = cmdArgs.destination
 
-    # for img in img_files:
-    #     cropBlobs(dest_folder, img)
+        if not os.path.isdir(src_folder):
+            AppMsg('Please enter a valid source folder path.')
+            sys.exit()
+
+        img_files = getFilePaths(src_folder)
+
+        for img in img_files:
+            cropBlobs(dest_folder, img)
 
 
 if __name__ == '__main__':

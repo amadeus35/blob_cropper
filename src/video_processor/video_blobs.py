@@ -130,6 +130,10 @@ def cropVideoBlobs(videoPath, destinationFolder):
     :param videoPath: Generate images from video and save them to directory
     :param destinationFolder: directory to store output of analysis
     """
+    if os.path.isdir(videoPath):
+        AppMsg('Path is not of file type, skipping entity.')
+        return None
+
     if not os.path.isdir(destinationFolder):
         AppMsg('Destination folder does not exist, creating folder at specified path.')
         os.makedirs(destinationFolder)
@@ -146,151 +150,157 @@ def cropVideoBlobs(videoPath, destinationFolder):
         os.makedirs(output_dir_vid)
     # Target folder where blobs will be written to.
     output_dir_blobCrops = f'{destinationFolder}/'
-
-    video = cv2.VideoCapture(videoPath)
-    success, image = video.read()
-    count = 0
-
-    while success:
-        dir = generated_images_dir + "frame%d.jpg"  # path to save image to
-        cv2.imwrite(dir % count, image)     # save frame
+    try:
+        video = cv2.VideoCapture(videoPath)
         success, image = video.read()
-        count += 1
-    # sys.exit()
-    blob_detector = getDetector()
+        count = 0
 
-    # METHOD 01: Get keypoints every frame using blob detector
+        while success:
+            dir = generated_images_dir + "frame%d.jpg"  # path to save image to
+            cv2.imwrite(dir % count, image)     # save frame
+            success, image = video.read()
+            count += 1
+        # sys.exit()
+        blob_detector = getDetector()
 
-    frame_index = 0
+        # METHOD 01: Get keypoints every frame using blob detector
 
-    # total number of images in directory
-    total_image_count = len(os.listdir(generated_images_dir))
-    max = total_image_count
+        frame_index = 0
 
-    image_directory = [os.path.join(generated_images_dir, f) for f in os.listdir(
-        generated_images_dir)]  # get path to image directory
+        # total number of images in directory
+        total_image_count = len(os.listdir(generated_images_dir))
+        max = total_image_count
 
-    keypoints = []
-    previous_keypoints = []
+        image_directory = [os.path.join(generated_images_dir, f) for f in os.listdir(
+            generated_images_dir)]  # get path to image directory
 
-    track_id = 0
-    tracking_objects = {}  # store all tracked blobs
-    min_dist = 15  # minimum distance of keypoint to consider a blob as same blob
+        keypoints = []
+        previous_keypoints = []
 
-    max = 90
+        track_id = 0
+        tracking_objects = {}  # store all tracked blobs
+        min_dist = 15  # minimum distance of keypoint to consider a blob as same blob
 
-    for img_name in image_directory:
+        max = 90
 
-        if frame_index < max:  # redundant but used to control length of video output
+        for img_name in image_directory:
 
-            # prepare_image(img_name, False) #read in image and prepare it
-            img = cv2.imread(img_name, 1)
-            # get image keypoints using blob detector
-            keypoints = blob_detector.detect(img)
+            if frame_index < max:  # redundant but used to control length of video output
 
-            if len(previous_keypoints) > 0:
+                # prepare_image(img_name, False) #read in image and prepare it
+                img = cv2.imread(img_name, 1)
+                # get image keypoints using blob detector
+                keypoints = blob_detector.detect(img)
 
-                if len(tracking_objects) == 0:  # if no tracked objects currently
+                if len(previous_keypoints) > 0:
 
-                    # we cant update when looping, so we need a copy
-                    keypoints_copy = list(keypoints).copy()
+                    if len(tracking_objects) == 0:  # if no tracked objects currently
 
-                    for kp in keypoints_copy:
-                        for pkp in previous_keypoints:
-                            x1, y1 = kp.pt
-                            x2, y2 = pkp.pt
-                            distance = math.hypot(x2 - x1, y2 - y1)
+                        # we cant update when looping, so we need a copy
+                        keypoints_copy = list(keypoints).copy()
 
-                            # WHEN DISTANCE IS < MINIMUM, WE CONSIDER THAT AS THE SAME BLOB, SO WE REMOVE THAT KEYPOINT AND UPDATE THE PREVIOUS KEYPOINT POSITION
-                            if distance < min_dist:
-                                list(keypoints).remove(kp)
-                                continue
+                        for kp in keypoints_copy:
+                            for pkp in previous_keypoints:
+                                x1, y1 = kp.pt
+                                x2, y2 = pkp.pt
+                                distance = math.hypot(x2 - x1, y2 - y1)
 
-                elif len(tracking_objects) > 0:
-                    tracking_objects_copy = tracking_objects.copy()
-                    keypoints_copy = list(keypoints).copy()
-
-                    for object_id, tracked_kp_point in tracking_objects_copy.items():
-
-                        object_exists = False  # check if saved tracked objects exits. If the distance is small, we can assume that the object exists still. If distance is great, we can assume tracked object is gone / not found
-
-                        for kp in keypoints_copy:  # kp refers to the NEWLY detected keypoints for the frame
-                            x1, y1 = kp.pt
-                            x2, y2 = tracked_kp_point[0], tracked_kp_point[1]
-                            distance = math.hypot(x2 - x1, y2 - y1)
-
-                            # WHEN DISTANCE IS < MINIMUM, WE CONSIDER THAT AS THE SAME BLOB, SO WE REMOVE THAT KEYPOINT AND <<<UPDATE>> THE PREVIOUS KEYPOINT POSITION
-                            if distance < min_dist:
-                                object_exists = True
-                                tracking_objects[object_id] = (kp.pt[0], kp.pt[1], kp.size, tracked_kp_point[3] + 1, tracked_kp_point[4], tracked_kp_point[5], tracked_kp_point[6] +
-                                                               kp.size, (tracked_kp_point[6] + kp.size) / (tracked_kp_point[3] + 1))  # Update old point with new point (update position and increment occurence count)
-
-                                if kp in keypoints:  # remove keypoint with small distanc
+                                # WHEN DISTANCE IS < MINIMUM, WE CONSIDER THAT AS THE SAME BLOB, SO WE REMOVE THAT KEYPOINT AND UPDATE THE PREVIOUS KEYPOINT POSITION
+                                if distance < min_dist:
                                     list(keypoints).remove(kp)
                                     continue
 
-                        # REMOVE KEYPOINTS THAT WERE LOST/NOT FOUND DURING THE CURRENT FRAME
-                        if not object_exists:
-                            # output_Sheet, row = addSheetRow(outputSheet,row,object_id,tracked_kp_point[4],tracked_kp_point[5],tracked_kp_point[0],tracked_kp_point[1],tracked_kp_point[3], tracked_kp_point[7]) #add row to sheet
-                            tracking_objects.pop(object_id)
+                    elif len(tracking_objects) > 0:
+                        tracking_objects_copy = tracking_objects.copy()
+                        keypoints_copy = list(keypoints).copy()
 
-            for kp in keypoints:  # add any remaining keypoints to tracked objects
-                # ADD TRACKED ELEMENT ( Current X, Current Y, KEYPOINT RADIUS, OCCURENCE COUNT, STARTX, STARTY , SUM RADIUS, AVERAGE DIAMETER)
-                tracking_objects[track_id] = (
-                    kp.pt[0], kp.pt[1], kp.size, 1, kp.pt[0], kp.pt[1], kp.size, kp.size)
-                #print("Added ID: %d , Distance between points (%d,%d) and (%d,%d) is: %d" % (track_id, x1,y1,x2,y2 ,distance) )
-                track_id += 1
+                        for object_id, tracked_kp_point in tracking_objects_copy.items():
 
-            # REMOVE DUPLICATE KEYPOINTS (SAME X,Y COORDS)
-            tracking_objects_copy = tracking_objects.copy()
-            for object_id, tracked_kp_point in tracking_objects_copy.items():
-                for object_id2, tracked_kp_point2 in tracking_objects_copy.items():
-                    x1, y1 = int(tracked_kp_point[0]), int(tracked_kp_point[1])
-                    x2, y2 = int(tracked_kp_point2[0]), int(
-                        tracked_kp_point2[1])
+                            object_exists = False  # check if saved tracked objects exits. If the distance is small, we can assume that the object exists still. If distance is great, we can assume tracked object is gone / not found
 
-                    if x1 == x2 and y1 == y2 and object_id != object_id2:
-                        # remove duplicate that has least occurences
-                        if tracked_kp_point[3] >= tracked_kp_point2[3]:
-                            if object_id2 in tracking_objects.keys():
-                                # output_Sheet, row = addSheetRow(outputSheet,row,object_id2,tracked_kp_point2[4],tracked_kp_point2[5],tracked_kp_point2[0],tracked_kp_point2[1],tracked_kp_point2[3], tracked_kp_point2[7]) #add row to sheet
-                                tracking_objects.pop(object_id2)
-                        else:
-                            if object_id in tracking_objects.keys():
+                            for kp in keypoints_copy:  # kp refers to the NEWLY detected keypoints for the frame
+                                x1, y1 = kp.pt
+                                x2, y2 = tracked_kp_point[0], tracked_kp_point[1]
+                                distance = math.hypot(x2 - x1, y2 - y1)
+
+                                # WHEN DISTANCE IS < MINIMUM, WE CONSIDER THAT AS THE SAME BLOB, SO WE REMOVE THAT KEYPOINT AND <<<UPDATE>> THE PREVIOUS KEYPOINT POSITION
+                                if distance < min_dist:
+                                    object_exists = True
+                                    tracking_objects[object_id] = (kp.pt[0], kp.pt[1], kp.size, tracked_kp_point[3] + 1, tracked_kp_point[4], tracked_kp_point[5], tracked_kp_point[6] +
+                                                                   kp.size, (tracked_kp_point[6] + kp.size) / (tracked_kp_point[3] + 1))  # Update old point with new point (update position and increment occurence count)
+
+                                    if kp in keypoints:  # remove keypoint with small distanc
+                                        list(keypoints).remove(kp)
+                                        continue
+
+                            # REMOVE KEYPOINTS THAT WERE LOST/NOT FOUND DURING THE CURRENT FRAME
+                            if not object_exists:
                                 # output_Sheet, row = addSheetRow(outputSheet,row,object_id,tracked_kp_point[4],tracked_kp_point[5],tracked_kp_point[0],tracked_kp_point[1],tracked_kp_point[3], tracked_kp_point[7]) #add row to sheet
                                 tracking_objects.pop(object_id)
 
-            # generates the blob crops for this frame
-            generate_blob_crops(tracking_objects, img, 100,
-                                output_dir_blobCrops, frame_index)
+                for kp in keypoints:  # add any remaining keypoints to tracked objects
+                    # ADD TRACKED ELEMENT ( Current X, Current Y, KEYPOINT RADIUS, OCCURENCE COUNT, STARTX, STARTY , SUM RADIUS, AVERAGE DIAMETER)
+                    tracking_objects[track_id] = (
+                        kp.pt[0], kp.pt[1], kp.size, 1, kp.pt[0], kp.pt[1], kp.size, kp.size)
+                    #print("Added ID: %d , Distance between points (%d,%d) and (%d,%d) is: %d" % (track_id, x1,y1,x2,y2 ,distance) )
+                    track_id += 1
 
-            # Last frame
-            # if frame_index >= max - 1:
-            # for object_id, tracked_kp_point in tracking_objects.items():
-            #   output_Sheet, row = addSheetRow(outputSheet,row,object_id,tracked_kp_point[4],tracked_kp_point[5],tracked_kp_point[0],tracked_kp_point[1],tracked_kp_point[3], tracked_kp_point[7]) #add row to sheet
+                # REMOVE DUPLICATE KEYPOINTS (SAME X,Y COORDS)
+                tracking_objects_copy = tracking_objects.copy()
+                for object_id, tracked_kp_point in tracking_objects_copy.items():
+                    for object_id2, tracked_kp_point2 in tracking_objects_copy.items():
+                        x1, y1 = int(tracked_kp_point[0]), int(
+                            tracked_kp_point[1])
+                        x2, y2 = int(tracked_kp_point2[0]), int(
+                            tracked_kp_point2[1])
 
-            # save image with drawn keypoints for output analysis
-            if DEBUG_ON:
-                save_keypoint_img(output_dir_imgs, tracking_objects,
-                                  img, False, frame_index)
+                        if x1 == x2 and y1 == y2 and object_id != object_id2:
+                            # remove duplicate that has least occurences
+                            if tracked_kp_point[3] >= tracked_kp_point2[3]:
+                                if object_id2 in tracking_objects.keys():
+                                    # output_Sheet, row = addSheetRow(outputSheet,row,object_id2,tracked_kp_point2[4],tracked_kp_point2[5],tracked_kp_point2[0],tracked_kp_point2[1],tracked_kp_point2[3], tracked_kp_point2[7]) #add row to sheet
+                                    tracking_objects.pop(object_id2)
+                            else:
+                                if object_id in tracking_objects.keys():
+                                    # output_Sheet, row = addSheetRow(outputSheet,row,object_id,tracked_kp_point[4],tracked_kp_point[5],tracked_kp_point[0],tracked_kp_point[1],tracked_kp_point[3], tracked_kp_point[7]) #add row to sheet
+                                    tracking_objects.pop(object_id)
 
-            previous_keypoints = list(keypoints).copy()  # make copy of points
-            frame_index += 1
+                # generates the blob crops for this frame
+                generate_blob_crops(tracking_objects, img, 100,
+                                    output_dir_blobCrops, frame_index)
 
-            # SAVE OUTPUT ANALYSIS IMAGES
+                # Last frame
+                # if frame_index >= max - 1:
+                # for object_id, tracked_kp_point in tracking_objects.items():
+                #   output_Sheet, row = addSheetRow(outputSheet,row,object_id,tracked_kp_point[4],tracked_kp_point[5],tracked_kp_point[0],tracked_kp_point[1],tracked_kp_point[3], tracked_kp_point[7]) #add row to sheet
 
-    # CREATE OUTPUT SPREADHSEET
-    #wb.save(output_directory +  "output.xls")
+                # save image with drawn keypoints for output analysis
+                if DEBUG_ON:
+                    save_keypoint_img(output_dir_imgs, tracking_objects,
+                                      img, False, frame_index)
 
-    # CREATE ANALYSIS VIDEO
-    # generateAnalysisVideo(output_dir_imgs, output_dir_vid, max)
+                previous_keypoints = list(
+                    keypoints).copy()  # make copy of points
+                frame_index += 1
 
-    # Clean up
-    def errorCallback(func, path, exc_info):
-        AppMsg('An error occured while cleaning the workspace.')
-        AppMsg(f'{exc_info[0]}')
-    AppMsg('Cleaning up...')
-    rmtree(generated_images_dir, onerror=errorCallback)
-    if DEBUG_ON:
-        rmtree(output_dir_imgs, ignore_errors=True)
-        rmtree(output_dir_vid, ignore_errors=True)
+                # SAVE OUTPUT ANALYSIS IMAGES
+
+        # CREATE OUTPUT SPREADHSEET
+        #wb.save(output_directory +  "output.xls")
+
+        # CREATE ANALYSIS VIDEO
+        # generateAnalysisVideo(output_dir_imgs, output_dir_vid, max)
+    except:
+        AppMsg('An error occurred while processing a video.')
+    finally:
+        # Clean up
+        def errorCallback(func, path, exc_info):
+            AppMsg('An error occured while cleaning the workspace.')
+            AppMsg(f'{exc_info[0]}')
+
+        AppMsg('Cleaning up...')
+
+        rmtree(generated_images_dir, onerror=errorCallback)
+        if DEBUG_ON:
+            rmtree(output_dir_imgs, ignore_errors=True)
+            rmtree(output_dir_vid, ignore_errors=True)
