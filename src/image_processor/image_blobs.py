@@ -4,59 +4,8 @@ import numpy as np
 import math
 import uuid
 from matplotlib import pyplot as plt
-from .utilities import AppMsg, findRange
-
-DEBUG = False
-
-
-def Debug(msg):
-    """
-    Dynamically prints console statements,
-    using the global var debug
-    :param msg:
-    :return void:
-    """
-    global DEBUG
-    if DEBUG == True:
-        print(f"[DEBUG]: {msg}")
-
-
-def getFilePaths(folder):
-    """
-    Returns an array of file paths found in given folder
-    """
-    image_files = []
-    for filename in os.listdir(folder):
-        image_files.append(folder+'/'+filename)
-    return image_files
-
-
-def resizeCropSquare(center_pt: tuple, rect_v1: tuple, rect_v2: tuple):
-    """
-    The method will reduce the size of a crop area by 5%
-    :param center_pt: The center of the key point
-    :param rect_v1: Is the top left vertex of the original crop square
-    :param rect_v2: Is the bottom right vertex of the original crop square
-    :return tuple: Returns new crop square coordinates 
-    """
-    x_center = center_pt[0]
-    y_center = center_pt[1]
-    current_area = (rect_v2[0] - rect_v1[0]) * (rect_v2[1] - rect_v1[1])
-    new_area = int(current_area * .95)
-    Debug(f'new_area = {new_area}')
-    side_len = int(math.sqrt(new_area))
-    new_radius = side_len / 2
-    new_v1 = (int(x_center - new_radius), int(y_center - new_radius))
-    new_v2 = (int(x_center + new_radius), int(y_center + new_radius))
-    return (new_v1, new_v2)
-
-
-def cropSquare(full_path, org_cropped):
-    try:
-        cv2.imwrite(full_path, org_cropped)
-        return True
-    except:
-        return False
+from ..utilities import AppMsg, findRange, Debug, cropSquareSafely, resizeCropSquare
+from ..configurations import DEBUG_ON
 
 
 def setBlobDetector(minArea: int):
@@ -159,7 +108,7 @@ def cropBlobs(folder_path: str, image_path: str):
         Debug(f'Resulting lum_threshold = {lum_threshold}')
         Debug(f'mean = {mean}')
 
-        if DEBUG:
+        if DEBUG_ON:
             plt.hist(flattened_gray_img, bins=256, range=[0, 256])
             plt.axvline(mean, color='k', linestyle='dashed', linewidth=1)
             if lum_threshold is not None:
@@ -186,7 +135,7 @@ def cropBlobs(folder_path: str, image_path: str):
             cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
         )
 
-        if DEBUG:
+        if DEBUG_ON:
             cv2.rectangle(img_with_keypts, (0, 0),
                           (side_len, side_len), (0, 255, 0), 5)
 
@@ -212,7 +161,7 @@ def cropBlobs(folder_path: str, image_path: str):
             Debug(f'crop range = {range}')
             Debug(f'range diff = {lum_diff}')
 
-            if crop_on and DEBUG and lum_diff > 40:
+            if crop_on and DEBUG_ON and lum_diff > 40:
                 # https://stackoverflow.com/questions/15589517/how-to-crop-an-image-in-opencv-using-python
                 # roi = im[y1:y2, x1:x2]
                 gray_cropped = threshed_img[v1[1]:v2[1], v1[0]:v2[0]]
@@ -224,7 +173,6 @@ def cropBlobs(folder_path: str, image_path: str):
                 cv2.imshow(gray_cropped)
                 cv2.imshow(org_cropped)
                 cv2.rectangle(img_with_keypts, v1, v2, (255, 0, 0), 5)
-                # cv2.rectangle(org_img, v1, v2, (255, 0, 0), 5)
 
             if lum_diff > 40:
                 folder_exists = os.path.exists(folder_path)
@@ -237,7 +185,7 @@ def cropBlobs(folder_path: str, image_path: str):
                 file_name = 'cropped-blob-' + str(uuid.uuid4()) + '.png'
                 full_path = os.path.join(folder_path, file_name)
 
-                didCrop = cropSquare(full_path, org_cropped)
+                didCrop = cropSquareSafely(full_path, org_cropped)
                 new_v1 = v1
                 new_v2 = v2
                 attempts_left = 30
@@ -246,13 +194,12 @@ def cropBlobs(folder_path: str, image_path: str):
                         (x_center, y_center), new_v1, new_v2)
                     new_v1 = new_rect[0]
                     new_v2 = new_rect[1]
-                    org_cropped = org_img[new_v1[1]
-                        :new_v2[1], new_v1[0]:new_v2[0]]
-                    didCrop = cropSquare(full_path, org_cropped)
+                    org_cropped = org_img[new_v1[1]                                          :new_v2[1], new_v1[0]:new_v2[0]]
+                    didCrop = cropSquareSafely(full_path, org_cropped)
                     attempts_left -= 1
-                    if didCrop and DEBUG:
+                    if didCrop and DEBUG_ON:
                         cv2.rectangle(org_img, new_v1, new_v2, (0, 0, 255), 5)
-                if DEBUG:
+                if DEBUG_ON:
                     cv2.rectangle(org_img, v1, v2, (255, 0, 0), 5)
 
         return (org_img, img_with_keypts)

@@ -1,6 +1,6 @@
 import argparse
-from src.crop_blobs import getFilePaths, cropBlobs
-from src.utilities import AppMsg
+from src.image_processor.image_blobs import cropBlobs
+from src.utilities import AppMsg, getFilePaths
 import os
 import sys
 
