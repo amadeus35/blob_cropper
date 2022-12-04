@@ -1,6 +1,11 @@
 import cv2
 import os
+import sys
 import math
+import time
+from shutil import rmtree
+from ..utilities import Debug, AppMsg
+from ..configurations import DEBUG_ON
 
 
 def getDetector():
@@ -32,7 +37,7 @@ def getDetector():
 def generate_blob_crops(tracking_objects, img, resize=100, output_dir="", frame=0, generateEveryXFrames=30):
     if (frame + 1) % generateEveryXFrames == 0:  # generate for every X frames
         index = 0
-        print("Generating crops.. Current Frame = " + str(frame))
+        AppMsg("Generating crops.. Current Frame = " + str(frame))
         for object_id, tracked_kp_point in tracking_objects.items():
             x, y = tracked_kp_point[0], tracked_kp_point[1]
             x, y = int(x), int(y)
@@ -53,7 +58,7 @@ def generate_blob_crops(tracking_objects, img, resize=100, output_dir="", frame=
             index += 1
 
 
-def save_keypoint_img(tracking_objects, img_with_keypoints, show=False, frame_index=0):
+def save_keypoint_img(output_dir_imgs, tracking_objects, img_with_keypoints, show=False, frame_index=0):
     img = img_with_keypoints
     for object_id, point in tracking_objects.items():  # Draw the circle and text around keypoints
         # point[2] is size of keypoint area
@@ -69,7 +74,7 @@ def save_keypoint_img(tracking_objects, img_with_keypoints, show=False, frame_in
 
         dir = output_dir_imgs + "frame%d.png"
         cv2.imwrite(dir % frame_index, img)
-        print("image saved")
+        Debug("image saved")
 
 
 def prepare_image(img_name, resize=False, size_x=750, size_y=750):
@@ -120,20 +125,27 @@ def generateAnalysisVideo(img_dir, video_dir, total_images):
     video.release()
 
 
-def cropBlobs(videoPath, destinationFolder):
+def cropVideoBlobs(videoPath, destinationFolder):
     """
     :param videoPath: Generate images from video and save them to directory
     :param destinationFolder: directory to store output of analysis
     """
+    if not os.path.isdir(destinationFolder):
+        AppMsg('Destination folder does not exist, creating folder at specified path.')
+        os.makedirs(destinationFolder)
 
-    generated_images_dir = destinationFolder + "videoFrames/"
-    # "/content/drive/MyDrive/cse485/data/test_videos_output/images/" #output analysis images
-    output_dir_imgs = destinationFolder + "analysisImages/"
-    # "/content/drive/MyDrive/cse485/data/test_videos_output/video/" #output analysis video
-    output_dir_vid = destinationFolder + "analysisVideo/"
+    ms_since_epoch = int(time.time() * 1000)
+    generated_images_dir = f"{destinationFolder}/videoFrames_{ms_since_epoch}/"
+    os.makedirs(generated_images_dir)
 
+    # Debug feature
+    if DEBUG_ON:
+        output_dir_imgs = f"{destinationFolder}/analysisImages_{ms_since_epoch}/"
+        output_dir_vid = f"{destinationFolder}/analysisVideos_{ms_since_epoch}/"
+        os.makedirs(output_dir_imgs)
+        os.makedirs(output_dir_vid)
     # Target folder where blobs will be written to.
-    output_dir_blobCrops = destinationFolder + "blobCrops/"
+    output_dir_blobCrops = f'{destinationFolder}/'
 
     video = cv2.VideoCapture(videoPath)
     success, image = video.read()
@@ -144,8 +156,8 @@ def cropBlobs(videoPath, destinationFolder):
         cv2.imwrite(dir % count, image)     # save frame
         success, image = video.read()
         count += 1
-
-    detector = getDetector()
+    # sys.exit()
+    blob_detector = getDetector()
 
     # METHOD 01: Get keypoints every frame using blob detector
 
@@ -157,7 +169,6 @@ def cropBlobs(videoPath, destinationFolder):
 
     image_directory = [os.path.join(generated_images_dir, f) for f in os.listdir(
         generated_images_dir)]  # get path to image directory
-
 
     keypoints = []
     previous_keypoints = []
@@ -175,7 +186,7 @@ def cropBlobs(videoPath, destinationFolder):
             # prepare_image(img_name, False) #read in image and prepare it
             img = cv2.imread(img_name, 1)
             # get image keypoints using blob detector
-            keypoints = detector.detect(img)
+            keypoints = blob_detector.detect(img)
 
             if len(previous_keypoints) > 0:
 
@@ -254,21 +265,32 @@ def cropBlobs(videoPath, destinationFolder):
                                 output_dir_blobCrops, frame_index)
 
             # Last frame
-            # if frame_index >= max - 1:  
+            # if frame_index >= max - 1:
             # for object_id, tracked_kp_point in tracking_objects.items():
             #   output_Sheet, row = addSheetRow(outputSheet,row,object_id,tracked_kp_point[4],tracked_kp_point[5],tracked_kp_point[0],tracked_kp_point[1],tracked_kp_point[3], tracked_kp_point[7]) #add row to sheet
 
             # save image with drawn keypoints for output analysis
-            save_keypoint_img(tracking_objects, img, False, frame_index)
+            if DEBUG_ON:
+                save_keypoint_img(output_dir_imgs, tracking_objects,
+                                  img, False, frame_index)
 
             previous_keypoints = list(keypoints).copy()  # make copy of points
             frame_index += 1
 
             # SAVE OUTPUT ANALYSIS IMAGES
 
-
     # CREATE OUTPUT SPREADHSEET
     #wb.save(output_directory +  "output.xls")
 
     # CREATE ANALYSIS VIDEO
-    generateAnalysisVideo(output_dir_imgs, output_dir_vid, max)
+    # generateAnalysisVideo(output_dir_imgs, output_dir_vid, max)
+
+    # Clean up
+    def errorCallback(func, path, exc_info):
+        AppMsg('An error occured while cleaning the workspace.')
+        AppMsg(f'{exc_info[0]}')
+    AppMsg('Cleaning up...')
+    rmtree(generated_images_dir, onerror=errorCallback)
+    if DEBUG_ON:
+        rmtree(output_dir_imgs, ignore_errors=True)
+        rmtree(output_dir_vid, ignore_errors=True)

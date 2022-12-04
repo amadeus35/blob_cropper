@@ -7,7 +7,7 @@ import math
 def Debug(msg):
     """
     Dynamically prints console statements,
-    using the global var debugs
+    based on the configuration debug value.
     :param msg:
     :return void:
     """
