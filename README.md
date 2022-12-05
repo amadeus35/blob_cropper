@@ -1,6 +1,6 @@
 # Blob Cropper
 
-A simple Python module that uses opencv2 to extract 'blobs' from a folder of images. The blob detector used is tuned to target a wide varity of blobs. It attempts to detect circluar blobs, ellipse shaped blobs, or blobs with concavity. The extracted blobs are stored as PNG files in the folder path provided via the application's CMD line interface.
+A Python command line tool which uses opencv2 to extract 'blobs' from images or videos. The blob detector used is tuned to target a wide varity of blobs. It attempts to detect circluar blobs, ellipse shaped blobs, or blobs with concavity. The extracted blobs are stored as PNG files in the folder path provided via the application's CMD line interface.
 
 ---
 
@@ -22,15 +22,22 @@ _All development done on 3.9.6_
 
 ## Application Commands
 
-The application has command line interface with 2 commands.
+The application has 2 major commands and a help command.
 
 1. Help command  
-   `python ./main.py --help`
+   `python ./blob_cropper.py --help`
 
-2. Crop command  
-   `python ./main.py -s folder/path/to/my/images -d folder/path/to/empty/folder`
+2. Crop images command  
+   `python ./blob_cropper.py crop_images -s folder/path/to/my/images -d folder/path/to/empty/folder`
 
    > The -s flag's value specifies the source folder where images will be retrieved from and processed.  
+   > The -d flag's value specifies the destination folder where the extracted blobs will be saved as image files.  
+   > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_If destination folder does not exist one will be created inside the source folder._
+
+3. Crop videos command  
+   `python ./blob_cropper.py crop_videos -s folder/path/to/my/videos -d folder/path/to/empty/folder`
+
+   > The -s flag's value specifies the source folder where videos will be retrieved from and processed.  
    > The -d flag's value specifies the destination folder where the extracted blobs will be saved as image files.  
    > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_If destination folder does not exist one will be created inside the source folder._
 
@@ -50,3 +57,7 @@ A listing of supported opencv2 image extensions can be found in the [opencv2 doc
 > - JPE
 > - PNG
 > - BMP
+
+### Videos
+
+The supported video fromats by this Python package are limited due to the use of opencv2. The video formats supported are platform dependent, however **avi** and **mp4** video formats have been known to work across multiple platforms.
