@@ -39,7 +39,7 @@ def setBlobDetector(minArea: int):
     return cv2.SimpleBlobDetector_create(params)
 
 
-def cropBlobs(folder_path: str, image_path: str):
+def cropImageBlobs(folder_path: str, image_path: str):
     """
     The method takes 2 parameter. The first one is the path to the folder where
     the crops will be saved. The second one is a image file path.

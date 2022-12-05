@@ -1,11 +1,11 @@
 import cv2
 import os
-import sys
 import math
 import time
 from shutil import rmtree
 from ..utilities import Debug, AppMsg
 from ..configurations import DEBUG_ON
+# from xlwt import Workbook
 
 
 def getDetector():
@@ -77,31 +77,6 @@ def save_keypoint_img(output_dir_imgs, tracking_objects, img_with_keypoints, sho
         Debug("image saved")
 
 
-def prepare_image(img_name, resize=False, size_x=750, size_y=750):
-    if resize == False:
-        img = cv2.imread(img_name, 1)
-        return img
-    else:
-        img = cv2.resize(img, (750, 750))
-        img = extract_image_center(
-            img.copy(),  hcrop=40/2, wcrop=40/2)  # GET CENTER OF IMAGE
-        return img
-
-# CROPS PERCENTAGE OF IMAGE WIDTH/HEIGHT WHERE hcrop IS HEIGHT, AND wcrop is WIDTH
-# crops based on percentage. For example, hcrop = 20 means crop 20% of the image height, and only leave 80% (600 pixel height)
-
-
-def extract_image_center(img, hcrop=0, wcrop=10):
-    # 750                                                                 wcrop = 20 means crop 20$ of the image width, and only leave 80% (600 pixel width)
-    x = img.shape[0]
-    y = img.shape[1]  # 750
-    xc = int(hcrop*x/100)  # xc = 20 * 750 / 100 = 150
-    yc = int(wcrop*y/100)  # yc = 20 * 750 / 100 = 150
-    img = img[xc:x-xc, yc:y-yc]  # img[150:600, 150:600] #[y1:y2,x1:x2]
-    img = cv2.resize(img, (x, y))
-    return img
-
-
 def generateAnalysisVideo(img_dir, video_dir, total_images):
     # get path to image directory
     image_directory = [os.path.join(img_dir, f) for f in os.listdir(img_dir)]
@@ -160,7 +135,9 @@ def cropVideoBlobs(videoPath, destinationFolder):
             cv2.imwrite(dir % count, image)     # save frame
             success, image = video.read()
             count += 1
-        # sys.exit()
+
+        video.release()
+
         blob_detector = getDetector()
 
         # METHOD 01: Get keypoints every frame using blob detector
@@ -180,6 +157,12 @@ def cropVideoBlobs(videoPath, destinationFolder):
         track_id = 0
         tracking_objects = {}  # store all tracked blobs
         min_dist = 15  # minimum distance of keypoint to consider a blob as same blob
+
+        # Create spreadsheet to store output data
+        # wb = Workbook()
+        # outputSheet = wb.add_sheet('Sheet 1', cell_overwrite_ok=True)
+        # row = 0
+        # output_Sheet, row = init_sheet(outputSheet, row)
 
         max = 90
 
@@ -286,7 +269,7 @@ def cropVideoBlobs(videoPath, destinationFolder):
                 # SAVE OUTPUT ANALYSIS IMAGES
 
         # CREATE OUTPUT SPREADHSEET
-        #wb.save(output_directory +  "output.xls")
+        # wb.save(output_directory + "output.xls")
 
         # CREATE ANALYSIS VIDEO
         # generateAnalysisVideo(output_dir_imgs, output_dir_vid, max)

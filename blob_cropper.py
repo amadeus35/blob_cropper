@@ -1,5 +1,5 @@
 import argparse
-from src.image_processor.image_blobs import cropBlobs
+from src.image_processor.image_blobs import cropImageBlobs
 from src.video_processor.video_blobs import cropVideoBlobs
 from src.utilities import AppMsg, getFilePaths
 import os
@@ -9,7 +9,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(
-        help='The blob sampler can processes 2 types of media, videos and images.')
+        help='The blob sampler can processes 2 types of media, videos and images. Use either crop_images or crop_videos to invoke these features.')
 
     image_parser = subparsers.add_parser(
         'crop_images', description='image_cropper', help='The image cropper analyzes images and crops out their blobs.')
@@ -54,7 +54,7 @@ def main():
         img_files = getFilePaths(src_folder)
 
         for img in img_files:
-            cropBlobs(dest_folder, img)
+            cropImageBlobs(dest_folder, img)
 
 
 if __name__ == '__main__':
